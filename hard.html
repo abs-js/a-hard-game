@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo Mais Difícil do Mundo</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+        canvas {
+            border: 2px solid #000;
+            background-color: #fff;
+        }
+        h2 {
+            font-family: sans-serif;
+            margin-left: 20px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <h2>points: <span id="points">0</span></h2>
+    <h2>kills: <span id="kills">0</span></h2>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const player = {
+            x: 680,
+            y: 50,
+            startX: 680,
+            startY: 50,
+            width: 30,
+            height: 30,
+            dx: 0,
+            dy: 0
+        };
+
+        const keys = {};
+
+        let points = 0;
+        let kills = 0;
+
+        const walls = [
+            { x: 300, y: 100, width: 600, height: 10 },
+            { x: 400, y: 200, width: 10, height: 200 },
+            { x: 500, y: 200, width: 10, height: 200 },
+            { x: 300, y: 500, width: 600, height: 10 }
+        ];
+
+        const enemies = [
+            { x: 590, y: 150, dx: 0, dy: 5, min: { x: 0, y: 150 }, max: { x: 0, y: 10 } },
+            { x: 200, y: 200, dx: -5, dy: 5, min: { x: 400, y: 100 }, max: { x: 200, y: 400 } },
+            { x: 300, y: 200, dx: -5, dy: 5, min: { x: 500, y: 100 }, max: { x: 300, y: 400 } },
+            { x: 50, y: 300, dx: 0, dy: -5, min: { x: 0, y: 30 }, max: { x: 0, y: 570 } },
+            { x: 100, y: 250, dx: 0, dy: -5, min: { x: 0, y: 30 }, max: { x: 0, y: 570 } },
+            { x: 150, y: 200, dx: 0, dy: -5, min: { x: 0, y: 30 }, max: { x: 0, y: 570 } },
+            { x: 200, y: 150, dx: 0, dy: -5, min: { x: 0, y: 30 }, max: { x: 0, y: 570 } },
+            { x: 705, y: 330, dx: 0, dy: 5, min: { x: 0, y: 200 }, max: { x: 0, y: 400 } },
+            { x: 655, y: 330, dx: 0, dy: 5, min: { x: 0, y: 200 }, max: { x: 0, y: 400 } },
+            { x: 605, y: 330, dx: 0, dy: 5, min: { x: 0, y: 200 }, max: { x: 0, y: 400 } },
+            { x: 390, y: 500, dx: 0, dy: 5, min: { x: 0, y: 450 }, max: { x: 0, y: 590 } },
+            { x: 490, y: 550, dx: 0, dy: -5, min: { x: 0, y: 450 }, max: { x: 0, y: 590 } },
+            { x: 590, y: 530, dx: 0, dy: 5, min: { x: 0, y: 450 }, max: { x: 0, y: 590 } },
+        ];
+
+        const coins = [
+            { exists: true, x: 300, y: 50 },
+            { exists: true, x: 440, y: 285 },
+            { exists: true, x: 125, y: 300 },
+            { exists: true, x: 705, y: 305 },
+            { exists: true, x: 680, y: 530 }
+        ]
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let y = 0; y <= canvas.height; y += 100) {
+                for (let x = 0; x <= canvas.width; x += 100) {
+                    ctx.fillStyle = "lightgray";
+                    ctx.fillRect(x, y, 50, 50);
+                    ctx.fillRect(x + 50, y + 50, 50, 50);
+                }
+            }
+
+            ctx.fillStyle = 'red';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+
+            ctx.fillStyle = 'black';
+            walls.forEach(wall => {
+                ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+            });
+
+            ctx.fillStyle = 'yellow';
+            coins.forEach(coin => {
+                if (coin.exists) {
+                    ctx.fillRect(coin.x, coin.y, 20, 20);
+                }
+            });
+
+            ctx.fillStyle = 'blue';
+            enemies.forEach(enemie => {
+                ctx.fillRect(enemie.x, enemie.y, 20, 20);
+            });
+        }
+
+        function update() {
+            player.x += player.dx;
+            player.y += player.dy;
+
+            walls.forEach(wall => {
+                if (isColliding(player, wall)) {
+                    resolveCollision(player, wall);
+                }
+            });
+
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+            if (player.y < 0) player.y = 0;
+            if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
+
+            if (keys.ArrowUp) {
+                player.dy = -5;
+            } else if (keys.ArrowDown) {
+                player.dy = 5;
+            } else {
+                player.dy = 0;
+            }
+
+            if (keys.ArrowLeft) {
+                player.dx = -5;
+            } else if (keys.ArrowRight) {
+                player.dx = 5;
+            } else {
+                player.dx = 0;
+            }
+
+            enemies.forEach(enemie => {
+                enemie.x += enemie.dx;
+                enemie.y += enemie.dy;
+
+                if (enemie.x > enemie.min.x) {
+                    enemie.dx = -enemie.dx;
+                }
+
+                 if (enemie.x < enemie.max.x) {
+                    enemie.dx = -enemie.dx;
+                }
+
+                if (enemie.y > enemie.min.y) {
+                    enemie.dy = -enemie.dy;
+                }
+
+                 if (enemie.y < enemie.max.y) {
+                    enemie.dy = -enemie.dy;
+                }
+
+                if (isColliding({ x: enemie.x, y: enemie.y, width: 20, height: 20 }, player)) {
+                    player.x = player.startX;
+                    player.y = player.startY;
+                    coins.forEach(coin => {
+                        coin.exists = true;
+                    });
+                    points = 0;
+                    kills++;
+                }
+            });
+
+            coins.forEach(coin => {
+                if (isColliding(player, { x: coin.x, y: coin.y, width: 20, height: 20 }) && coin.exists) {
+                    points++;
+                    coin.exists = false;
+                }
+            });
+
+            document.getElementById('points').textContent = points;
+            document.getElementById('kills').textContent = kills;
+        }
+
+        function isColliding(A, B) {
+            return A.x < B.x + B.width && A.x + A.width > B.x &&
+                   A.y < B.y + B.height && A.y + A.height > B.y;
+        }
+
+        function resolveCollision(player, wall) {
+            const distTop = player.y + player.height - wall.y;
+            const distBottom = wall.y + wall.height - player.y;
+            const distLeft = player.x + player.width - wall.x;
+            const distRight = wall.x + wall.width - player.x;
+
+            const minDistance = Math.min(distTop, distBottom, distLeft, distRight);
+
+            if (minDistance === distTop) {
+                player.y = wall.y - player.height;
+            } else if (minDistance === distBottom) {
+                player.y = wall.y + wall.height;
+            } else if (minDistance === distLeft) {
+                player.x = wall.x - player.width;
+            } else if (minDistance === distRight) {
+                player.x = wall.x + wall.width;
+            }
+        }
+
+        function main() {
+            update();
+            draw();
+            requestAnimationFrame(main);
+        }
+
+        document.addEventListener('keydown', (event) => {
+            keys[event.key] = true;
+        });
+
+        document.addEventListener('keyup', (event) => {
+            keys[event.key] = false;
+        });
+
+        main();
+    </script>
+</body>
+</html>
